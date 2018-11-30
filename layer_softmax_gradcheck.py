@@ -186,9 +186,7 @@ class LayerSoftmaxLoss:
 		return self.err
 
 class NN:
-	def __init__(self,m,graph):
-		self.m=m
-
+	def __init__(self,graph):
 		self.layers=graph
 	def setshapes(self, inputshape):
 		numlayers=len(self.layers)
@@ -248,23 +246,45 @@ class NN:
 			if (val==y[0,i]):
 				count=count+1
 		return (float(count)/float(m))
-	def train(self, x, y, maxiters, alpha):
+	def train(self, x, y, batchsize, maxiters, alpha):
+		numbatches=x.shape[1]/batchsize
+		print "maxiters:", maxiters, "numbatches: ", numbatches
+		batchidx=0
+
 		for i in range(0, maxiters):
-			yhat=self.forward(x)
-			cost=self.costFunc(yhat, y)
-			accuracy=self.binaryaccuracy(yhat, y)
-			print 'iter: ', i, 'cost: ', cost, 'accuracy: ', accuracy
-			self.backward(y)
-			#self.gradcheck(x,y)
+			batchstart=batchidx*batchsize
+			batchend=(batchidx+1)*batchsize
+			#print "batchstart: ", batchstart, "batchend", batchend
+			batchx=x[:,batchstart:batchend]
+			batchy=y[:,batchstart:batchend]
+
+			batchidx=np.mod(i, numbatches)
 
 
-			yhat=self.forward(x, dropout=False)
-			cost=self.costFunc(yhat, y)
-			accuracy=self.binaryaccuracy(yhat, y)
-			print '\tcost nodrop:', cost, 'accuracy:', accuracy
+			yhat=self.forward(batchx)
+			self.backward(batchy)
+
+			if (np.mod(i, 100)==0):
+				cost=self.costFunc(yhat, batchy)
+				accuracy=self.binaryaccuracy(yhat, batchy)
+				print 'iter: ', i
+				print '\tbatchcost: ', cost, 'batchaccuracy: ', accuracy
+
+				#yhat=self.forward(x)
+				#cost=self.costFunc(yhat, y)
+				#accuracy=self.binaryaccuracy(yhat, y)
+				#print '\tcost: ', cost, 'accuracy: ', accuracy
+
+
+				#self.gradcheck(batchx,batchy)
+
+				yhat=self.forward(batchx, dropout=False)
+				cost=self.costFunc(yhat, batchy)
+				accuracy=self.binaryaccuracy(yhat, batchy)
+				print '\tcost nodrop:', cost, 'accuracy:', accuracy
 
 			self.update(alpha)
-		print y[:,0:10]
+		print batchy[:,0:10]
 		print yhat[:,0:10]
 
 	def gradcheck(self, x, y):

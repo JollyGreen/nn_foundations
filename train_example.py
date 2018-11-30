@@ -20,12 +20,18 @@ m=x.shape[1]
 graph=[]
 graph.append(LayerInnerProduct(20))
 graph.append(LayerReLU())
+#graph.append(LayerSigmoid())
 graph.append(LayerInnerProduct(2))
 #graph.append(LayerLoss())
 graph.append(LayerSoftmaxLoss())
 
-nn=NN(m, graph)
+numdatapoints=x.shape[1]
+batchsize=100
+numiters=80*(numdatapoints/batchsize)
+alpha=0.3
+
+nn=NN(graph)
 nn.setshapes(x.shape)
 
-nn.train(x, y, 160, 0.3)
-nn.dumpweights()
+nn.train(x, y, batchsize, numiters, alpha)
+#nn.dumpweights()
