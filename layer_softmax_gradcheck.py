@@ -15,9 +15,8 @@ def prod(x, W, b):
 
 
 class LayerInnerProduct:
-	def __init__(self, m, numhidden):
+	def __init__(self, numhidden):
 		self.type='innerproduct'
-		self.m=m
 		self.numhidden=numhidden
 		
 		self.first=True
@@ -49,9 +48,10 @@ class LayerInnerProduct:
 		self.a=prod(self.z,self.W,self.b)
 		return self.a
 	def backward(self, din):
+		m=self.z.shape[1]
 		self.din=din
-		self.deltaW=(1.0/float(self.m))*self.z*(din.getT())
-		self.deltaB=(1.0/float(self.m))*np.sum(self.din, axis=1)
+		self.deltaW=(1.0/float(m))*self.z*(din.getT())
+		self.deltaB=(1.0/float(m))*np.sum(self.din, axis=1)
 		self.dout=self.W*(self.din)
 
 		return self.dout

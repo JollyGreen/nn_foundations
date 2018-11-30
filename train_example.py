@@ -18,14 +18,14 @@ print 'y:', y.shape
 m=x.shape[1]
 
 graph=[]
-graph.append(LayerInnerProduct(m, 20))
+graph.append(LayerInnerProduct(20))
 graph.append(LayerReLU())
-graph.append(LayerInnerProduct(m, 2))
+graph.append(LayerInnerProduct(2))
 #graph.append(LayerLoss())
 graph.append(LayerSoftmaxLoss())
 
 nn=NN(m, graph)
 nn.setshapes(x.shape)
 
-nn.train(x, y, 160, 1.0)
+nn.train(x, y, 160, 0.3)
 nn.dumpweights()
