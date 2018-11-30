@@ -19,6 +19,9 @@ class LayerInnerProduct:
 		self.type='innerproduct'
 		self.m=m
 		self.numhidden=numhidden
+		
+		self.first=True
+		self.gamma=0.9
 	def setshapes(self, inputshape):
 		self.zshape=inputshape
 
@@ -52,6 +55,20 @@ class LayerInnerProduct:
 		self.dout=self.W*(self.din)
 
 		return self.dout
+	def update_momentum(self, alpha):
+		if (self.first==True):
+			self.first=False
+			self.W=self.W-alpha*self.deltaW
+			self.b=self.b-alpha*self.deltaB
+
+			self.updateW=self.deltaW
+			self.updateB=self.deltaB
+		else:
+			self.updateW=self.gamma*self.updateW+self.deltaW
+			self.updateB=self.gamma*self.updateB+self.deltaB
+
+			self.W=self.W-alpha*self.deltaW
+			self.b=self.b-alpha*self.deltaB
 	def update(self, alpha):
 		self.W=self.W-alpha*self.deltaW
 		self.b=self.b-alpha*self.deltaB
@@ -218,7 +235,7 @@ class NN:
 		for i in range(0,numlayers):
 			layer=self.layers[i]
 			if (layer.type=='innerproduct'):
-				layer.update(alpha)	
+				layer.update_momentum(alpha)	
 	def binaryaccuracy(self, yhat,y):
 		m=y.shape[1]
 		val=0
