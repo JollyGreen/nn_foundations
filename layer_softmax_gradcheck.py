@@ -67,8 +67,8 @@ class LayerInnerProduct:
 			self.updateW=self.gamma*self.updateW+self.deltaW
 			self.updateB=self.gamma*self.updateB+self.deltaB
 
-			self.W=self.W-alpha*self.deltaW
-			self.b=self.b-alpha*self.deltaB
+			self.W=self.W-alpha*self.updateW
+			self.b=self.b-alpha*self.updateB
 	def update(self, alpha):
 		self.W=self.W-alpha*self.deltaW
 		self.b=self.b-alpha*self.deltaB
