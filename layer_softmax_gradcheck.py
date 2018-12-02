@@ -29,7 +29,9 @@ class LayerInnerProduct:
 
 		self.ashape=(self.numhidden, self.zshape[1])
 
-		self.W=np.matrix(np.random.normal(size=self.Wshape))
+		#self.W=np.matrix(np.random.normal(size=self.Wshape))
+		#xavier weight initialization
+		self.W=np.matrix(np.random.randn(self.Wshape[0],self.Wshape[1]))*np.sqrt(2.0/(self.zshape[0]))
 		self.b=np.matrix(np.ones(self.Bshape))
 
 	def setW(self, W):
@@ -246,20 +248,36 @@ class NN:
 			if (val==y[0,i]):
 				count=count+1
 		return (float(count)/float(m))
+	def getminibatch(self, x, y, batchsize, i):
+		samples=x.shape[1]
+		batchstartidx=np.mod(i*batchsize, samples)
+
+		if ((batchstartidx+batchsize) <= samples):
+			batchendidx=batchstartidx+batchsize
+			batchx=x[:,batchstartidx:batchendidx]
+			batchy=y[:,batchstartidx:batchendidx]
+		else:
+			#print 'split batch'
+			numfirsthalf=samples-batchstartidx
+			batchx=x[:,batchstartidx:]
+			batchy=y[:,batchstartidx:]
+			#print '\tbatchx.shape', batchx.shape
+
+			endidx=np.mod(batchstartidx+batchsize, samples)
+			lasthalfx=x[:,0:endidx]
+			lasthalfy=y[:,0:endidx]
+			#print '\tlasthalfx.shape', lasthalfx.shape
+
+			batchx=np.concatenate((batchx,lasthalfx), axis=1)
+			batchy=np.concatenate((batchy,lasthalfy), axis=1)
+			#print '\tbatchx.shape', batchx.shape
+		return [batchx,batchy]
+
 	def train(self, x, y, batchsize, maxiters, alpha):
-		numbatches=x.shape[1]/batchsize
-		print "maxiters:", maxiters, "numbatches: ", numbatches
-		batchidx=0
+		print "maxiters:", maxiters
 
 		for i in range(0, maxiters):
-			batchstart=batchidx*batchsize
-			batchend=(batchidx+1)*batchsize
-			#print "batchstart: ", batchstart, "batchend", batchend
-			batchx=x[:,batchstart:batchend]
-			batchy=y[:,batchstart:batchend]
-
-			batchidx=np.mod(i, numbatches)
-
+			[batchx,batchy]=self.getminibatch(x,y,batchsize,i)
 
 			yhat=self.forward(batchx)
 			self.backward(batchy)
@@ -268,22 +286,28 @@ class NN:
 				cost=self.costFunc(yhat, batchy)
 				accuracy=self.binaryaccuracy(yhat, batchy)
 				print 'iter: ', i
-				print '\tbatchcost: ', cost, 'batchaccuracy: ', accuracy
-
-				#yhat=self.forward(x)
-				#cost=self.costFunc(yhat, y)
-				#accuracy=self.binaryaccuracy(yhat, y)
-				#print '\tcost: ', cost, 'accuracy: ', accuracy
-
+				print '\tbatchcost: ', cost, 'batchaccuracy: ', accuracy,
 
 				#self.gradcheck(batchx,batchy)
 
-				yhat=self.forward(batchx, dropout=False)
-				cost=self.costFunc(yhat, batchy)
-				accuracy=self.binaryaccuracy(yhat, batchy)
-				print '\tcost nodrop:', cost, 'accuracy:', accuracy
+
+				yhat=self.forward(x)
+				cost=self.costFunc(yhat, y)
+				accuracy=self.binaryaccuracy(yhat, y)
+				print ' cost: ', cost, 'accuracy: ', accuracy
+
+				#yhat=self.forward(batchx, dropout=False)
+				#cost=self.costFunc(yhat, batchy)
+				#accuracy=self.binaryaccuracy(yhat, batchy)
+				#print '\tcost nodrop:', cost, 'accuracy:', accuracy
 
 			self.update(alpha)
+
+		yhat=self.forward(x)
+		cost=self.costFunc(yhat, y)
+		accuracy=self.binaryaccuracy(yhat, y)
+		print 'final cost: ', cost, 'accuracy: ', accuracy
+
 		print batchy[:,0:10]
 		print yhat[:,0:10]
 

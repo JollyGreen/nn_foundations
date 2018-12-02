@@ -25,10 +25,10 @@ graph.append(LayerInnerProduct(2))
 #graph.append(LayerLoss())
 graph.append(LayerSoftmaxLoss())
 
-numdatapoints=x.shape[1]
-batchsize=100
-numiters=80*(numdatapoints/batchsize)
-alpha=0.3
+numsamples=x.shape[1]
+batchsize=128
+numiters=int(np.round(80.0*(float(numsamples)/float(batchsize))))
+alpha=0.1
 
 nn=NN(graph)
 nn.setshapes(x.shape)
