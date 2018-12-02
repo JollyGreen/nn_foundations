@@ -3,16 +3,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-m=500
+m=1000
 scale=0.15
 
+offsetx=0.0
+offsety=0.0
+
 vals=1.0*np.array(range(0,m))*(1.0/float(m))
-x1=np.cos(2*np.pi*vals)+np.random.rand(m)*scale
-y1=np.sin(2*np.pi*vals)+np.random.rand(m)*scale
+x1=offsetx+np.cos(2*np.pi*vals)+np.random.rand(m)*scale
+y1=offsety+np.sin(2*np.pi*vals)+np.random.rand(m)*scale
 c0=np.zeros(m)
 
-x2=0.75*np.cos(2*np.pi*vals)+np.random.rand(m)*scale
-y2=0.75*np.sin(2*np.pi*vals)+np.random.rand(m)*scale
+x2=offsetx+0.75*np.cos(2*np.pi*vals)+np.random.rand(m)*scale
+y2=offsety+0.75*np.sin(2*np.pi*vals)+np.random.rand(m)*scale
 c1=np.ones(m)
 
 xvals=np.concatenate([x1,x2])

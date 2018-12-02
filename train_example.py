@@ -12,10 +12,19 @@ from nn_utils import *
 
 x=np.matrix(xvals)
 y=np.matrix(cvals)
+m=x.shape[1]
+traintest_ratio=0.8
+numtrain=int(float(m)*traintest_ratio)
+numtest=m-numtrain
+
+xtrain=x[:,0:numtrain]
+xtest=x[:,numtrain:]
+
+ytrain=y[:,0:numtrain]
+ytest=y[:,numtrain:]
 
 print 'x:', x.shape
 print 'y:', y.shape
-m=x.shape[1]
 
 graph=[]
 graph.append(LayerInnerProduct(20))
@@ -25,7 +34,7 @@ graph.append(LayerInnerProduct(2))
 #graph.append(LayerLoss())
 graph.append(LayerSoftmaxLoss())
 
-numsamples=x.shape[1]
+numsamples=xtrain.shape[1]
 batchsize=128
 numpasses=80
 numiters=int(np.round(float(numpasses)*(float(numsamples)/float(batchsize))))
@@ -34,5 +43,5 @@ alpha=0.1
 nn=NN(graph)
 nn.setshapes(x.shape)
 
-nn.train(x, y, batchsize, numiters, alpha)
+nn.train(xtrain, ytrain, xtest, ytest, batchsize, numiters, alpha)
 #nn.dumpweights()
