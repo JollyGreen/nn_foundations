@@ -248,6 +248,14 @@ class NN:
 			if (val==y[0,i]):
 				count=count+1
 		return (float(count)/float(m))
+	def accuracy(self, yhat,y):
+		m=y.shape[1]
+		count=0
+		for i in range(0, m):
+			maxyhat=np.argmax(yhat[:,i])
+			if (y[maxyhat,i]==1.0):
+				count=count+1
+		return (float(count)/float(m))
 	def getminibatch(self, x, y, batchsize, i):
 		samples=x.shape[1]
 		batchstartidx=np.mod(i*batchsize, samples)
@@ -273,7 +281,7 @@ class NN:
 			#print '\tbatchx.shape', batchx.shape
 		return [batchx,batchy]
 
-	def train(self, x, y, batchsize, maxiters, alpha):
+	def train(self, x, y, xtest, ytest, batchsize, maxiters, alpha):
 		print "maxiters:", maxiters
 
 		for i in range(0, maxiters):
@@ -284,31 +292,37 @@ class NN:
 
 			if (np.mod(i, 100)==0):
 				cost=self.costFunc(yhat, batchy)
-				accuracy=self.binaryaccuracy(yhat, batchy)
+				accuracy=self.accuracy(yhat, batchy)
 				print 'iter: ', i
 				print '\tbatchcost: ', cost, 'batchaccuracy: ', accuracy,
 
 				#self.gradcheck(batchx,batchy)
 
 
-				yhat=self.forward(x)
+				yhat=self.forward(x, dropout=False)
 				cost=self.costFunc(yhat, y)
-				accuracy=self.binaryaccuracy(yhat, y)
+				accuracy=self.accuracy(yhat, y)
 				print ' cost: ', cost, 'accuracy: ', accuracy
+
+				yhat=self.forward(xtest, dropout=False)
+				cost=self.costFunc(yhat, ytest)
+				accuracy=self.accuracy(yhat, ytest)
+				print '\t test cost: ', cost, 'accuracy: ', accuracy
 
 				#yhat=self.forward(batchx, dropout=False)
 				#cost=self.costFunc(yhat, batchy)
-				#accuracy=self.binaryaccuracy(yhat, batchy)
+				#accuracy=self.accuracy(yhat, batchy)
 				#print '\tcost nodrop:', cost, 'accuracy:', accuracy
 
 			self.update(alpha)
 
-		yhat=self.forward(x)
+		yhat=self.forward(x, dropout=False)
 		cost=self.costFunc(yhat, y)
-		accuracy=self.binaryaccuracy(yhat, y)
-		print 'final cost: ', cost, 'accuracy: ', accuracy
+		accuracy=self.accuracy(yhat, y)
+		print 'iter: ', i
+		print '\tfinal cost: ', cost, 'accuracy: ', accuracy
 
-		print batchy[:,0:10]
+		print y[:,0:10]
 		print yhat[:,0:10]
 
 	def gradcheck(self, x, y):

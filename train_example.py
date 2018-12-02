@@ -27,7 +27,8 @@ graph.append(LayerSoftmaxLoss())
 
 numsamples=x.shape[1]
 batchsize=128
-numiters=int(np.round(80.0*(float(numsamples)/float(batchsize))))
+numpasses=80
+numiters=int(np.round(float(numpasses)*(float(numsamples)/float(batchsize))))
 alpha=0.1
 
 nn=NN(graph)
