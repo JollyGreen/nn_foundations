@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 m=1000
-scale=0.15
+scale=0.25
 
 offsetx=0.0
 offsety=0.0
