@@ -171,13 +171,16 @@ class NN:
 				a=self.layers[i].forward(z)
 				z=a
 		return a
-	def backward(self, din):
+	def backward(self, din, dropout=True):
 		numlayers=len(self.layers)
 		#print 'Backward'
 		for i in range(numlayers-1, -1, -1):
 			#print self.layers[i].type
-			dout=self.layers[i].backward(din)
-			din=dout
+			if ((dropout==False) and (self.layers[i].type=='dropout')):
+				pass
+			else:
+				dout=self.layers[i].backward(din)
+				din=dout
 	def update(self, alpha):
 		numlayers=len(self.layers)
 		for i in range(0,numlayers):
@@ -241,12 +244,20 @@ class NN:
 				testaccuracy=self.accuracy(yhattest, ytest)
 				print '\ttrain - cost: %7.2f\taccuracy: %7.2f\ttest - cost: %7.2f\taccuracy: %7.2f' % (batchcost, batchaccuracy, testcost, testaccuracy)
 
-				#self.gradcheck(batchx,batchy)
+				self.gradcheck(batchx,batchy)
 
 			self.update(alpha)
 	def gradcheck(self, x, y):
 		epsilon=1e-4
 		numlayers=len(self.layers)
+
+		#need to call both forward and backward without dropout, because each forward call randomizes the dropout picks
+		#since we need to call forward multiple times to compute the estimated gradient we need dropout turned off so
+		#that the estimated gradients match the calculated gradients from the call to "backward"
+		#Also, ReLU layers can cause errors in the gradient estimates because the "kink" at zero doesn't have a derivative.
+		yhat=self.forward(x,dropout=False)
+		self.backward(y, dropout=False)
+
 		for i in range(0, numlayers):
 			layer=self.layers[i]
 			if (layer.type=='innerproduct'):
@@ -275,7 +286,7 @@ class NN:
 					layer.setW(tmpW)
 					layer.setB(tmpB)
 
-					yhat1=self.forward(x)
+					yhat1=self.forward(x,dropout=False)
 					cost1=self.costFunc(yhat1, y)
 
 					tmpW=np.matrix((initialParams-eps)[0:numW].reshape(shapeW))
@@ -283,7 +294,7 @@ class NN:
 					layer.setW(tmpW)
 					layer.setB(tmpB)
 
-					yhat2=self.forward(x)
+					yhat2=self.forward(x,dropout=False)
 					cost2=self.costFunc(yhat2,y)
 
 					result=(cost1-cost2)/(2.0*epsilon)
@@ -294,8 +305,6 @@ class NN:
 				tmpB=np.matrix((initialParams)[numW:].reshape(shapeB))
 				layer.setW(tmpW)
 				layer.setB(tmpB)
-
-				self.forward(x)
 
 				numGradW=np.matrix(numGrad[0:numW].reshape(shapeW))
 				numGradB=np.matrix(numGrad[numW:].reshape(shapeB))
