@@ -19,7 +19,12 @@ class LayerInnerProduct:
 		self.numhidden=numhidden
 		
 		self.first=True
+
+		#momentum weight
 		self.gamma=0.9
+
+		#regularization weight
+		self.eta=0.0002
 	def setshapes(self, inputshape):
 		self.zshape=inputshape
 		self.m=self.zshape[0]
@@ -45,6 +50,9 @@ class LayerInnerProduct:
 		return self.W
 	def getB(self):
 		return self.b
+	def regularization(self):
+		regterm=self.eta*np.dot(self.W.reshape(-1),self.W.reshape(-1).transpose())
+		return regterm
 	def forward(self, z):
 		self.z=z
 		self.zgemm=np.squeeze(np.squeeze(self.z, axis=3),axis=2)
@@ -52,11 +60,14 @@ class LayerInnerProduct:
 		self.a=np.expand_dims(np.expand_dims(self.agemm, axis=2), axis=3)
 		return self.a
 	def backward(self, din):
-		m=self.z.shape[0]
+		m=float(self.z.shape[0])
 		self.din=din
 		self.din_gemm=np.squeeze(np.squeeze(self.din, axis=3),axis=2)
 
-		self.deltaW=(1.0/float(m))*np.dot(self.din_gemm.transpose(),self.zgemm)
+		self.deltaW=(1.0/m)*np.dot(self.din_gemm.transpose(),self.zgemm)
+		#L2 regularization
+		self.deltaW=self.deltaW-(self.eta/m)*self.W
+
 		self.deltaB=(1.0/float(m))*np.sum(self.din_gemm, axis=0).transpose()
 		self.deltaB=np.expand_dims(self.deltaB, axis=1)
 		#print '\tdeltaW',self.deltaW.shape
@@ -189,10 +200,17 @@ class NN:
 				layer.update(alpha)	
 	def costFunc(self, yhat, y):
 		cost=0.0
+		m=float(y.shape[0])
 		numlayers=len(self.layers)
 		lastlayer=self.layers[numlayers-1]
 		if (lastlayer.type=='loss'):
 			cost=lastlayer.costFunc(yhat, y)
+
+		#add in L2 regularization
+		for i in range(0,numlayers):
+			layer=self.layers[i]
+			if (layer.type=='innerproduct'):
+				cost=cost-0.5*(1.0/m)*layer.regularization()
 		return cost
 	def accuracy(self, yhat,y):
 		m=y.shape[0]
@@ -242,9 +260,9 @@ class NN:
 				yhattest=self.forward(xtest, dropout=False)
 				testcost=self.costFunc(yhattest, ytest)
 				testaccuracy=self.accuracy(yhattest, ytest)
-				print '\ttrain - cost: %7.2f\taccuracy: %7.2f\ttest - cost: %7.2f\taccuracy: %7.2f' % (batchcost, batchaccuracy, testcost, testaccuracy)
+				print '\ttrain - cost: %7.3f\taccuracy: %7.3f\ttest - cost: %7.3f\taccuracy: %7.3f' % (batchcost, batchaccuracy, testcost, testaccuracy)
 
-				self.gradcheck(batchx,batchy)
+				#self.gradcheck(batchx,batchy)
 
 			self.update(alpha)
 	def gradcheck(self, x, y):

@@ -27,7 +27,7 @@ ytest=y[numtrain:,]
 graph=[]
 graph.append(LayerInnerProduct(10))
 graph.append(LayerReLU())
-graph.append(LayerDropout(0.8))
+#graph.append(LayerDropout(0.8))
 graph.append(LayerInnerProduct(2))
 graph.append(LayerSoftmaxLoss())
 
@@ -40,5 +40,5 @@ numsamples=xtrain.shape[0]
 batchsize=128
 numpasses=80
 numiters=int(np.round(float(numpasses)*(float(numsamples)/float(batchsize))))
-nn.train(xtrain,ytrain,xtest,ytest, batchsize, numiters, 0.1)
+nn.train(xtrain,ytrain,xtest,ytest, batchsize, numiters, 0.3)
 
