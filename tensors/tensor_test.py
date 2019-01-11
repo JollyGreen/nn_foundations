@@ -40,5 +40,6 @@ numsamples=xtrain.shape[0]
 batchsize=128
 numpasses=80
 numiters=int(np.round(float(numpasses)*(float(numsamples)/float(batchsize))))
-nn.train(xtrain,ytrain,xtest,ytest, batchsize, numiters, 0.3)
+itersperpass=2*numiters/numpasses
+nn.train(xtrain,ytrain,xtest,ytest, batchsize, itersperpass, numiters, 0.3)
 

@@ -244,7 +244,7 @@ class NN:
 			batchy=np.concatenate((batchy,lasthalfy), axis=0)
 			#print '\tbatchx.shape', batchx.shape
 		return [batchx,batchy]
-	def train(self, xtrain, ytrain, xtest, ytest, batchsize, maxiters, alpha):
+	def train(self, xtrain, ytrain, xtest, ytest, batchsize, itersperpass, maxiters, alpha):
 		print "maxiters:", maxiters
 
 		for i in range(0, maxiters):
@@ -252,7 +252,7 @@ class NN:
 			yhat=self.forward(batchx)
 			self.backward(batchy)
 
-			if (np.mod(i, 100)==0):
+			if (np.mod(i, itersperpass)==0):
 				yhatbatch=self.forward(batchx, dropout=False)
 				batchcost=self.costFunc(yhatbatch, batchy)
 				batchaccuracy=self.accuracy(yhatbatch, batchy)
