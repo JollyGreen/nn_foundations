@@ -24,7 +24,7 @@ class LayerInnerProduct:
 		self.gamma=0.9
 
 		#regularization weight
-		self.eta=0.0002
+		self.eta=0.0004
 	def setshapes(self, inputshape):
 		self.zshape=inputshape
 		self.m=self.zshape[0]
@@ -66,7 +66,7 @@ class LayerInnerProduct:
 
 		self.deltaW=(1.0/m)*np.dot(self.din_gemm.transpose(),self.zgemm)
 		#L2 regularization
-		self.deltaW=self.deltaW-(self.eta/m)*self.W
+		self.deltaW=self.deltaW+(self.eta/m)*self.W
 
 		self.deltaB=(1.0/float(m))*np.sum(self.din_gemm, axis=0).transpose()
 		self.deltaB=np.expand_dims(self.deltaB, axis=1)
@@ -200,6 +200,7 @@ class NN:
 				layer.update(alpha)	
 	def costFunc(self, yhat, y):
 		cost=0.0
+		regterm=0.0
 		m=float(y.shape[0])
 		numlayers=len(self.layers)
 		lastlayer=self.layers[numlayers-1]
@@ -210,8 +211,8 @@ class NN:
 		for i in range(0,numlayers):
 			layer=self.layers[i]
 			if (layer.type=='innerproduct'):
-				cost=cost-0.5*(1.0/m)*layer.regularization()
-		return cost
+				regterm=regterm+0.5*(1.0/m)*layer.regularization()
+		return (cost+regterm)
 	def accuracy(self, yhat,y):
 		m=y.shape[0]
 		count=0

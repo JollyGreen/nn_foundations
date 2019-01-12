@@ -47,7 +47,7 @@ batchsize=128
 numpasses=80
 numiters=int(np.round(float(numpasses)*(float(numsamples)/float(batchsize))))
 itersperpass=2*numiters/numpasses
-alpha=0.1
+alpha=0.01
 
 nn=NN(graph)
 nn.setshapes(x.shape)
