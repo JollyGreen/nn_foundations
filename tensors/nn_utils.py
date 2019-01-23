@@ -41,7 +41,7 @@ def parse_mnist_train(filename_digits, filename_labels, numdigits):
 		numrows=struct.unpack('>i', fdigits.read(4))[0]
 		numcols=struct.unpack('>i', fdigits.read(4))[0]
 		print 'magicnumber:',magicnumber,'numimages:',numimages,'numrows:',numrows,'numcols:',numcols
-		digits=np.fromfile(fdigits, dtype='>B', count=numrows*numcols*numdigits).reshape(numdigits, numrows*numcols)
+		digits=np.fromfile(fdigits, dtype='>B', count=numrows*numcols*numdigits).reshape(numdigits, numrows,numcols, 1)
 	finally:
 		fdigits.close()
 

@@ -128,6 +128,24 @@ class LayerDropout:
 		self.dout=np.multiply(din, self.d)
 		return self.dout
 
+class LayerFlatten:
+	def __init__(self):
+		self.type='flatten'
+		pass
+	def setshapes(self, inputshape):
+		(m,ah,aw,channels)=inputshape
+		self.zshape=inputshape
+		self.ashape=(m, ah*aw*channels, 1, 1)
+	def forward(self, z):
+		(m,ah,aw,channels)=z.shape
+		self.z=z
+		self.a=self.z.reshape(m,ah*aw*channels,1,1)
+		return self.a
+	def backward(self, din):
+		self.din=din
+		self.dout=self.din.reshape( self.z.shape )
+		return self.dout
+
 class LayerSoftmaxLoss:
 	def __init__(self):
 		self.type='loss'
