@@ -3,6 +3,8 @@
 import numpy as np
 import sys
 
+from conv_helpers import *
+
 def sigmoid(x):
 	return 1.0/(1.0+np.exp(-x))
 
@@ -11,7 +13,69 @@ def sigmoid_prime(x):
 	return np.multiply(r, (1.0-r))
 
 def prod(x, W, b):
-	return (x*W.getT()+b.getT())
+	#return (x*W.getT()+b.getT())
+	#return (x*np.transpose(W)+np.transpose(b))
+	return (np.dot(x,np.transpose(W))+np.transpose(b))
+
+class LayerConv:
+	def __init__(self):
+		self.type='conv3x3'
+		self.outchannels=1
+		self.Wshape=(3,3,1,self.outchannels)
+	def setshapes(self, inputshape):
+		(m,ah,aw,channels)=inputshape
+		self.m=m
+		self.zshape=inputshape
+		self.ashape=(m,ah,aw,self.outchannels)
+		
+		self.Wshape=(3,3,1,self.outchannels) # HxWxICxOC
+		self.W=np.random.randn(self.Wshape[0],self.Wshape[1],self.Wshape[2],self.Wshape[3])
+		self.b=np.random.randn(1,self.outchannels)
+		self.deltaB=np.random.randn(1,self.outchannels)
+		pass
+	def setW(self, W):
+		self.W=W
+	def setB(self, B):
+		self.b=B
+	def getW(self):
+		return self.W
+	def getB(self):
+		return self.b
+	def forward(self, z):
+		#for now, just implement 3x3 stride of 1 convolutions with padding of 1,
+		#start with just 1 input channel to 1 output channel.
+		padval=1
+		(m,zh,zw,channels)=z.shape
+		padzh=zh+2*padval
+		padzw=zw+2*padval
+
+		self.padz=np.zeros( (m,padzh,padzw,channels) )
+		for i in range(0,m):
+			for j in range(0,channels):
+				self.padz[i,:,:,j]=np.pad(z[i,:,:,j],pad_width=padval, mode='constant', constant_values=0)
+		self.a=corr4d_gemm_tensor(self.padz,self.W)
+		#print "conv shape",self.a.shape	
+		return self.a
+	def backward(self, din):
+		(m,dh,dw,dchannels)=din.shape
+		(m,zh,zw,zchannels)=self.padz.shape
+		fh=zh-dh+1
+		fw=zw-dw+1
+
+		self.deltaW=np.zeros( (fh,fw,zchannels,dchannels) )
+		for n in range(0,m):
+			for i in range(0,fh):
+				for j in range(0,fw):
+					for k in range(0,zchannels):
+						for l in range(0,dchannels):
+							self.deltaW[i,j,k,l]+=np.dot( self.padz[n, i:(i+dh),j:(j+dw), k].reshape(-1), din[n,:,:,l].reshape(-1) )
+				
+		#print "self.padz.shape",self.padz.shape
+		#print "din.shape",din.shape
+		#print "deltaW.shape",self.deltaW.shape
+		pass
+	def update(self, alpha):
+		pass
 
 class LayerInnerProduct:
 	def __init__(self, numhidden):
@@ -56,6 +120,9 @@ class LayerInnerProduct:
 	def forward(self, z):
 		self.z=z
 		self.zgemm=np.squeeze(np.squeeze(self.z, axis=3),axis=2)
+		#print self.zgemm.shape
+		#print self.W.shape
+		#print self.b.shape
 		self.agemm=prod(self.zgemm,self.W,self.b)
 		self.a=np.expand_dims(np.expand_dims(self.agemm, axis=2), axis=3)
 		return self.a
@@ -297,7 +364,8 @@ class NN:
 
 		for i in range(0, numlayers):
 			layer=self.layers[i]
-			if (layer.type=='innerproduct'):
+			print "layer.type: ", layer.type
+			if (layer.type=='innerproduct' or layer.type=='conv3x3'):
 				print 'Layer Gradcheck'
 				shapeW=layer.getW().shape
 				shapeB=layer.getB().shape
@@ -318,16 +386,16 @@ class NN:
 				#print 'eps', eps
 				for i in range(0,numParams):
 					eps[i]=epsilon
-					tmpW=np.matrix((initialParams+eps)[0:numW].reshape(shapeW))
-					tmpB=np.matrix((initialParams+eps)[numW:].reshape(shapeB))
+					tmpW=(initialParams+eps)[0:numW].reshape(shapeW)
+					tmpB=(initialParams+eps)[numW:].reshape(shapeB)
 					layer.setW(tmpW)
 					layer.setB(tmpB)
 
 					yhat1=self.forward(x,dropout=False)
 					cost1=self.costFunc(yhat1, y)
 
-					tmpW=np.matrix((initialParams-eps)[0:numW].reshape(shapeW))
-					tmpB=np.matrix((initialParams-eps)[numW:].reshape(shapeB))
+					tmpW=(initialParams-eps)[0:numW].reshape(shapeW)
+					tmpB=(initialParams-eps)[numW:].reshape(shapeB)
 					layer.setW(tmpW)
 					layer.setB(tmpB)
 
@@ -338,13 +406,13 @@ class NN:
 					numGrad[i]=result
 					eps[i]=0.0
 
-				tmpW=np.matrix((initialParams)[0:numW].reshape(shapeW))
-				tmpB=np.matrix((initialParams)[numW:].reshape(shapeB))
+				tmpW=(initialParams)[0:numW].reshape(shapeW)
+				tmpB=(initialParams)[numW:].reshape(shapeB)
 				layer.setW(tmpW)
 				layer.setB(tmpB)
 
-				numGradW=np.matrix(numGrad[0:numW].reshape(shapeW))
-				numGradB=np.matrix(numGrad[numW:].reshape(shapeB))
+				numGradW=numGrad[0:numW].reshape(shapeW)
+				numGradB=numGrad[numW:].reshape(shapeB)
 				deltas=np.append(np.asarray(layer.deltaW.reshape(-1)), np.asarray(layer.deltaB.reshape(-1)))
 				#print 'deltaW', layer.deltaW
 				#print 'numGradW', numGradW

@@ -31,16 +31,20 @@ def corr4d_gemm_tensor(a,f, padval=0):
 	padah=ah+2*padval
 	padaw=aw+2*padval
 
-	pada=np.zeros( (m,padah,padaw,channels) )
-	for i in range(0,m):
-		for j in range(0,channels):
-			pada[i,:,:,j]=np.pad(a[i,:,:,j],pad_width=padval, mode='constant', constant_values=0)
+	if (padval > 0):
+		pada=np.zeros( (m,padah,padaw,channels) )
+		for i in range(0,m):
+			for j in range(0,channels):
+				pada[i,:,:,j]=np.pad(a[i,:,:,j],pad_width=padval, mode='constant', constant_values=0)
+	else:
+		pada=a
 
 	(fh,fw,ic,oc)=f.shape
 
 	oh=padah-fh+1
 	ow=padaw-fw+1
 
+	#print oh,ow
 	flen=fh*fw*ic
 	farray=f.reshape(flen,oc)
 

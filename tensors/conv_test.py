@@ -191,7 +191,7 @@ f=np.random.randint( 10, size=(3,3) )
 a=np.random.randint( 10, size=(28,28) )
 
 print "Single Channel"
-print "Scipy built-in Convolution"
+print "Scipy built-in valid Convolution"
 pada=np.pad(a,pad_width=1, mode='constant', constant_values=0)
 o=correlate2d(pada,f, mode='valid')
 print o.shape
@@ -205,6 +205,17 @@ print "GEMM Convolution"
 o_hat_gemm=corr2d_gemm(a,f,padval=1)
 print o_hat_gemm.shape
 print (o==o_hat_gemm).all()
+
+print "Scipy built-in full Convolution"
+o=correlate2d(a,f, mode='full')
+print o.shape
+
+print "Brute force 2D full Convolution"
+o_hat=corr2d(a,f,padval=2)
+print o_hat.shape
+print (o==o_hat).all()
+
+
 
 print "Three Channel"
 f=np.random.randint( 10, size=(3,3) )
