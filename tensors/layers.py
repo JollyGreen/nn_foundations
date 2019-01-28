@@ -20,7 +20,7 @@ def prod(x, W, b):
 class LayerConv:
 	def __init__(self):
 		self.type='conv3x3'
-		self.outchannels=1
+		self.outchannels=4
 		self.Wshape=(3,3,1,self.outchannels)
 	def setshapes(self, inputshape):
 		(m,ah,aw,channels)=inputshape
@@ -28,7 +28,7 @@ class LayerConv:
 		self.zshape=inputshape
 		self.ashape=(m,ah,aw,self.outchannels)
 		
-		self.Wshape=(3,3,1,self.outchannels) # HxWxICxOC
+		self.Wshape=(3,3,channels,self.outchannels) # HxWxICxOC
 		self.W=np.random.randn(self.Wshape[0],self.Wshape[1],self.Wshape[2],self.Wshape[3])
 		self.b=np.ones(self.outchannels)
 		self.deltaB=np.zeros(self.outchannels)
@@ -54,6 +54,7 @@ class LayerConv:
 			for j in range(0,channels):
 				self.padz[i,:,:,j]=np.pad(z[i,:,:,j],pad_width=padval, mode='constant', constant_values=0)
 		self.a=corr4d_gemm_tensor(self.padz,self.W)
+		#self.a=corr4d_tensor(self.padz,self.W)
 		for i in range(0,self.outchannels):
 			self.a[:,:,:,i]+=self.b[i]
 
@@ -66,16 +67,17 @@ class LayerConv:
 		fw=zw-dw+1
 
 		self.deltaW=np.zeros( (fh,fw,zchannels,dchannels) )
-		for n in range(0,m):
-			for i in range(0,fh):
-				for j in range(0,fw):
-					for k in range(0,zchannels):
-						for l in range(0,dchannels):
-							self.deltaW[i,j,k,l]+=np.dot( self.padz[n, i:(i+dh),j:(j+dw), k].reshape(-1), din[n,:,:,l].reshape(-1) )
+		print self.padz.shape, din.shape
+		for i in range(0,fh):
+			for j in range(0,fw):
+				for k in range(0,dchannels):
+					for l in range(0,zchannels):
+						for n in range(0,m):
+							self.deltaW[i,j,l,k]+=(1.0/float(m))*np.dot( self.padz[n, i:(i+dh),j:(j+dw), l].reshape(-1), din[n,:,:,k].reshape(-1) )
 
 		self.deltaB=np.zeros(self.outchannels)
 		for i in range(0,self.outchannels):
-			self.deltaB[i]+=np.sum(din[:,:,:,i])
+			self.deltaB[i]+=(1.0/float(m))*np.sum(din[:,:,:,i])
 		#print "self.padz.shape",self.padz.shape
 		#print "din.shape",din.shape
 		#print "deltaW.shape",self.deltaW.shape
@@ -384,6 +386,7 @@ class NN:
 				#print 'b',layer.getB().reshape(-1)
 
 				initialParams=np.append(np.asarray(layer.getW()).reshape(-1), np.asarray(layer.getB()).reshape(-1))
+				print numW,numB
 
 				eps=np.zeros(initialParams.shape).reshape(-1)
 				numGrad=np.zeros(initialParams.shape).reshape(-1)
