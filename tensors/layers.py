@@ -30,8 +30,8 @@ class LayerConv:
 		
 		self.Wshape=(3,3,1,self.outchannels) # HxWxICxOC
 		self.W=np.random.randn(self.Wshape[0],self.Wshape[1],self.Wshape[2],self.Wshape[3])
-		self.b=np.random.randn(1,self.outchannels)
-		self.deltaB=np.random.randn(1,self.outchannels)
+		self.b=np.ones(self.outchannels)
+		self.deltaB=np.zeros(self.outchannels)
 		pass
 	def setW(self, W):
 		self.W=W
@@ -54,6 +54,9 @@ class LayerConv:
 			for j in range(0,channels):
 				self.padz[i,:,:,j]=np.pad(z[i,:,:,j],pad_width=padval, mode='constant', constant_values=0)
 		self.a=corr4d_gemm_tensor(self.padz,self.W)
+		for i in range(0,self.outchannels):
+			self.a[:,:,:,i]+=self.b[i]
+
 		#print "conv shape",self.a.shape	
 		return self.a
 	def backward(self, din):
@@ -69,7 +72,10 @@ class LayerConv:
 					for k in range(0,zchannels):
 						for l in range(0,dchannels):
 							self.deltaW[i,j,k,l]+=np.dot( self.padz[n, i:(i+dh),j:(j+dw), k].reshape(-1), din[n,:,:,l].reshape(-1) )
-				
+
+		self.deltaB=np.zeros(self.outchannels)
+		for i in range(0,self.outchannels):
+			self.deltaB[i]+=np.sum(din[:,:,:,i])
 		#print "self.padz.shape",self.padz.shape
 		#print "din.shape",din.shape
 		#print "deltaW.shape",self.deltaW.shape
@@ -367,11 +373,13 @@ class NN:
 			print "layer.type: ", layer.type
 			if (layer.type=='innerproduct' or layer.type=='conv3x3'):
 				print 'Layer Gradcheck'
-				shapeW=layer.getW().shape
-				shapeB=layer.getB().shape
-				numW=shapeW[0]*shapeW[1]
-				numB=shapeB[0]*shapeB[1]
+				tmpW=layer.getW()
+				tmpB=layer.getB()
 
+				shapeW=tmpW.shape
+				shapeB=tmpB.shape
+				numW=tmpW.size
+				numB=tmpB.size
 				#print 'W',layer.getW().reshape(-1)
 				#print 'b',layer.getB().reshape(-1)
 
