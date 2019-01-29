@@ -18,9 +18,9 @@ def prod(x, W, b):
 	return (np.dot(x,np.transpose(W))+np.transpose(b))
 
 class LayerConv:
-	def __init__(self):
+	def __init__(self,numchannels):
 		self.type='conv3x3'
-		self.outchannels=4
+		self.outchannels=numchannels
 		self.Wshape=(3,3,1,self.outchannels)
 	def setshapes(self, inputshape):
 		(m,ah,aw,channels)=inputshape
@@ -65,6 +65,13 @@ class LayerConv:
 		(m,zh,zw,zchannels)=self.padz.shape
 		fh=zh-dh+1
 		fw=zw-dw+1
+		din_padval=1
+
+		(tmpfh,tmpfw,ic,oc)=self.W.shape
+		rotW=np.zeros( (tmpfh,tmpfw,oc,ic) )
+		for k in range(0,dchannels):
+			for l in range(0,zchannels):
+				rotW[:,:,k,l]=np.rot90(self.W[:,:,l,k], 2)
 
 		self.deltaW=np.zeros( (fh,fw,zchannels,dchannels) )
 		print self.padz.shape, din.shape
@@ -81,7 +88,19 @@ class LayerConv:
 		#print "self.padz.shape",self.padz.shape
 		#print "din.shape",din.shape
 		#print "deltaW.shape",self.deltaW.shape
-		pass
+		paddinh=dh+2*din_padval
+		paddinw=dw+2*din_padval
+		self.paddin=np.zeros( (m,paddinh,paddinw,dchannels) )
+		for i in range(0,m):
+			for j in range(0,dchannels):
+				self.paddin[i,:,:,j]=np.pad(din[i,:,:,j],pad_width=din_padval, mode='constant', constant_values=0)
+		print "din.shape: ", din.shape
+		print "paddin.shape: ", self.paddin.shape
+		print "rotW.shape: ", rotW.shape
+		self.dout=corr4d_gemm_tensor(self.paddin,rotW)
+		print "self.dout: ",self.dout.shape
+		#self.dout=np.random.randn( self.dout.shape[0],self.dout.shape[1],self.dout.shape[2],self.dout.shape[3] )
+		return self.dout
 	def update(self, alpha):
 		pass
 
@@ -170,6 +189,41 @@ class LayerInnerProduct:
 		#self.W=self.W-alpha*self.deltaW
 		#self.b=self.b-alpha*self.deltaB
 
+class LayerMaxPool:
+	def __init__(self):
+		self.type='maxpool'
+	def setshapes(self, inputshape):
+		(m,h,w,channels)=inputshape
+		self.zshape=inputshape
+		self.ashape=(m,h/2,w/2,channels)
+	def forward(self, z):
+		(m,h,w,channels)=z.shape
+		self.z=z
+		self.a=np.zeros( (m,h/2,w/2,channels) )
+		self.switches=np.zeros( (m,h/2,w/2,channels), dtype=int)
+		for n in range(0,m):
+			for c in range(0,channels):
+				for i in range(0,h/2):
+					for j in range(0,w/2):
+						patch=z[n, i*2:(i*2+2), j*2:(j*2+2), c].reshape(-1)
+						switch=np.argmax( patch )
+						self.switches[n,i,j,c]=switch
+						self.a[n,i,j,c]=patch[switch]
+		return self.a
+	def backward(self, din):
+		(m,h,w,channels)=din.shape
+		self.dout=np.zeros( (m,h*2,w*2,channels) )
+		for n in range(0,m):
+			for c in range(0,channels):
+				for i in range(0,h*2,2):
+					for j in range(0,w*2,2):
+						patch=np.zeros( 4 )
+						dval=din[n,i/2,j/2,c]
+						switchval=self.switches[n,i/2,j/2,c]
+						patch[switchval]=dval
+						self.dout[n, i:(i+2), j:(j+2), c]=patch.reshape( (2,2) )
+		
+		return self.dout
 class LayerReLU:
 	def __init__(self):
 		self.type='relu'

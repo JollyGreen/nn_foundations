@@ -25,8 +25,10 @@ print 'xtest:', xtest.shape
 print 'ytest:', ytest.shape
 
 graph=[]
-graph.append(LayerConv())
-graph.append(LayerConv())
+graph.append(LayerConv(32))
+graph.append(LayerMaxPool())
+graph.append(LayerConv(32))
+graph.append(LayerMaxPool())
 graph.append(LayerFlatten())
 graph.append(LayerInnerProduct(10))
 graph.append(LayerSoftmaxLoss())
@@ -38,21 +40,10 @@ numiters=int(np.round(float(numpasses)*(float(numsamples)/float(batchsize))))
 itersperpass=2*numiters/numpasses
 alpha=0.01
 
-#simulate a 3 channel input
-xtmp=np.zeros( (2,28,28,3) )
-for i in range(0,2):
-	for j in range(0,3):
-		xtmp[i,:,:,j]=x[i*3+j,:,:,0]
-
-#xtmp=x[0:2,:,:,:]
-ytmp=y[0:2,:,:,:]
-
+xtmp=x[0:128,:,:,:]
 nn=NN(graph)
 nn.setshapes(xtmp.shape)
 
-#nn.train(x,y,xtest,ytest, batchsize, itersperpass, numiters, alpha)
+nn.train(x,y,xtest,ytest, batchsize, itersperpass, numiters, alpha)
 
-yhat=nn.forward(xtmp)
-nn.backward(ytmp)
-nn.gradcheck(xtmp,ytmp)
 
