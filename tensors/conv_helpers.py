@@ -2,6 +2,57 @@
 
 import numpy as np
 
+def get_im2col_indices(x_shape, field_height, field_width, padding=1, stride=1):
+	# First figure out what the size of the output should be
+	N, H, W, C = x_shape
+	assert (H + 2 * padding - field_height) % stride == 0
+	assert (W + 2 * padding - field_height) % stride == 0
+	out_height = (H + 2 * padding - field_height) / stride + 1
+	out_width = (W + 2 * padding - field_width) / stride + 1
+
+	i0 = np.repeat(np.arange(field_height), field_width)
+	i0 = np.tile(i0, C)
+	i1 = stride * np.repeat(np.arange(out_height), out_width)
+	j0 = np.tile(np.arange(field_width), field_height * C)
+	j1 = stride * np.tile(np.arange(out_width), out_height)
+	i = i0.reshape(-1, 1) + i1.reshape(1, -1)
+	j = j0.reshape(-1, 1) + j1.reshape(1, -1)
+
+	k = np.repeat(np.arange(C), field_height * field_width).reshape(-1, 1)
+
+	return (k, i, j)
+
+def corr_tensor_backprop(a,b,padval=0):
+	(m,ah,aw,ic)=a.shape
+	(m,bh,bw,oc)=b.shape
+	fh=ah-bh+1
+	fw=aw-bw+1
+
+	f=np.zeros( (fh,fw,ic,oc) )
+	for n in range(0,m):
+		for i in range(0,fh):
+			for j in range(0,fw):
+				for k in range(0,ic):
+					for l in range(0,oc):
+						f[i,j,k,l]+=np.dot( a[n,i:(i+bh), j:(j+bw),k].reshape(-1), b[n,:,:,l].reshape(-1))
+	return f
+
+def corr_gemm_tensor_backprop(a,b,padval=0):
+	(m,ah,aw,ic)=a.shape
+	(m,bh,bw,oc)=b.shape
+	fh=ah-bh+1
+	fw=aw-bw+1
+
+	agemm=np.zeros( (fh*fw*ic, m*bh*bw) )
+	for i in range(0,fh):
+		for j in range(0,fw):
+			for k in range(0,ic):
+				agemm[i*fw*ic+j*ic+k, :]=a[:,i:(i+bh), j:(j+bw),k].reshape(-1)
+	bgemm=b.reshape( (m*bh*bw, oc) )
+	f=np.dot(agemm, bgemm)
+
+	return f.reshape(fh,fw,ic,oc)
+
 def corr4d_tensor(a,f,padval=0):
 	(m,ah,aw,channels)=a.shape
 	padah=ah+2*padval
@@ -19,9 +70,9 @@ def corr4d_tensor(a,f,padval=0):
 
 	o=np.zeros( (m,oh,ow,oc) )
 	for i in range(0,m):
-		for r in range(0,oh):
-			for c in range(0,ow):
-				for ochannel in range(0,oc):
+		for ochannel in range(0,oc):
+			for r in range(0,oh):
+				for c in range(0,ow):
 					for ichannel in range(0,ic):
 						o[i,r,c,ochannel]+=np.dot(f[:,:,ichannel,ochannel].reshape(-1), pada[i,r:(r+fh),c:(c+fw), ichannel].reshape(-1))
 	return o
@@ -46,14 +97,17 @@ def corr4d_gemm_tensor(a,f, padval=0):
 
 	#print oh,ow
 	flen=fh*fw*ic
+	#f=f.transpose(2,0,1,3)
 	farray=f.reshape(flen,oc)
 
+	#pada=pada.transpose(0,3,1,2)
 	#Nx27*m 27x10
 	tmp=np.zeros( (m*oh*ow, flen) )
 	for i in range(0,m):
 		for r in range(0,oh):
 			for c in range(0,ow):
-				tmp[i*oh*ow+r*ow+c,:]=pada[i,r:(r+fh),c:(c+fw), :].reshape(-1)
+				tmp[i*oh*ow+r*ow+c,:]=pada[i,r:(r+fh),c:(c+fw),:].reshape(-1)
+				#tmp[i*oh*ow+r*ow+c,:]=pada[i,:,r:(r+fh),c:(c+fw)].reshape(-1)
 	result=np.dot(tmp, farray)
 	return result.reshape(m,oh,ow,oc)
 

@@ -2,8 +2,10 @@
 
 import numpy as np
 import sys
+import time
 
 from conv_helpers import *
+from maxpool_helpers import *
 
 def sigmoid(x):
 	return 1.0/(1.0+np.exp(-x))
@@ -21,15 +23,28 @@ class LayerConv:
 	def __init__(self,numchannels):
 		self.type='conv3x3'
 		self.outchannels=numchannels
-		self.Wshape=(3,3,1,self.outchannels)
+		self.first=True
+
+		#momentum weight
+		self.gamma=0.9
+
+		#regularization weight
+		self.eta=0.0004
 	def setshapes(self, inputshape):
-		(m,ah,aw,channels)=inputshape
+		(m,ah,aw,self.inputchannels)=inputshape
 		self.m=m
 		self.zshape=inputshape
 		self.ashape=(m,ah,aw,self.outchannels)
-		
-		self.Wshape=(3,3,channels,self.outchannels) # HxWxICxOC
-		self.W=np.random.randn(self.Wshape[0],self.Wshape[1],self.Wshape[2],self.Wshape[3])
+
+		fanin=self.inputchannels*3*3
+		fanout=self.outchannels
+		#s=np.sqrt(2.0/float(fanin+fanout)) #normal
+		s=np.sqrt(6.0/float(fanin+fanout)) #uniform
+
+		self.Wshape=(3,3,self.inputchannels,self.outchannels) # HxWxICxOC
+		#self.W=np.random.randn(self.Wshape[0],self.Wshape[1],self.Wshape[2],self.Wshape[3])
+		#self.W=np.random.normal(loc=0.0, scale=s, size=self.Wshape)
+		self.W=np.random.uniform(low=-s, high=s, size=self.Wshape)
 		self.b=np.ones(self.outchannels)
 		self.deltaB=np.zeros(self.outchannels)
 		pass
@@ -41,6 +56,10 @@ class LayerConv:
 		return self.W
 	def getB(self):
 		return self.b
+	def regularization(self):
+		regterm=self.eta*np.dot(self.W.reshape(-1),self.W.reshape(-1).transpose())
+		return regterm
+		#return 0.0
 	def forward(self, z):
 		#for now, just implement 3x3 stride of 1 convolutions with padding of 1,
 		#start with just 1 input channel to 1 output channel.
@@ -73,14 +92,17 @@ class LayerConv:
 			for l in range(0,zchannels):
 				rotW[:,:,k,l]=np.rot90(self.W[:,:,l,k], 2)
 
-		self.deltaW=np.zeros( (fh,fw,zchannels,dchannels) )
-		print self.padz.shape, din.shape
-		for i in range(0,fh):
-			for j in range(0,fw):
-				for k in range(0,dchannels):
-					for l in range(0,zchannels):
-						for n in range(0,m):
-							self.deltaW[i,j,l,k]+=(1.0/float(m))*np.dot( self.padz[n, i:(i+dh),j:(j+dw), l].reshape(-1), din[n,:,:,k].reshape(-1) )
+		#self.deltaW=np.zeros( (fh,fw,zchannels,dchannels) )
+		#print self.padz.shape, din.shape
+		#for i in range(0,fh):
+		#	for j in range(0,fw):
+		#		for k in range(0,dchannels):
+		#			for l in range(0,zchannels):
+		#				for n in range(0,m):
+		#					self.deltaW[i,j,l,k]+=(1.0/float(m))*np.dot( self.padz[n, i:(i+dh),j:(j+dw), l].reshape(-1), din[n,:,:,k].reshape(-1) )
+		self.deltaW=(1.0/float(m))*corr_gemm_tensor_backprop(self.padz,din)
+		#L2 regularization
+		self.deltaW=self.deltaW+(self.eta/float(m))*self.W
 
 		self.deltaB=np.zeros(self.outchannels)
 		for i in range(0,self.outchannels):
@@ -94,15 +116,31 @@ class LayerConv:
 		for i in range(0,m):
 			for j in range(0,dchannels):
 				self.paddin[i,:,:,j]=np.pad(din[i,:,:,j],pad_width=din_padval, mode='constant', constant_values=0)
-		print "din.shape: ", din.shape
-		print "paddin.shape: ", self.paddin.shape
-		print "rotW.shape: ", rotW.shape
+		#print "din.shape: ", din.shape
+		#print "paddin.shape: ", self.paddin.shape
+		#print "rotW.shape: ", rotW.shape
 		self.dout=corr4d_gemm_tensor(self.paddin,rotW)
-		print "self.dout: ",self.dout.shape
+		#print "self.dout: ",self.dout.shape
 		#self.dout=np.random.randn( self.dout.shape[0],self.dout.shape[1],self.dout.shape[2],self.dout.shape[3] )
 		return self.dout
+	def update_momentum(self, alpha):
+		if (self.first==True):
+			self.first=False
+			self.W=self.W-alpha*self.deltaW
+			self.b=self.b-alpha*self.deltaB
+
+			self.updateW=self.deltaW
+			self.updateB=self.deltaB
+		else:
+			self.updateW=self.gamma*self.updateW+self.deltaW
+			self.updateB=self.gamma*self.updateB+self.deltaB
+
+			self.W=self.W-alpha*self.updateW
+			self.b=self.b-alpha*self.updateB
 	def update(self, alpha):
-		pass
+		self.update_momentum(alpha)
+		#self.W=self.W-alpha*self.deltaW
+		#self.b=self.b-alpha*self.deltaB
 
 class LayerInnerProduct:
 	def __init__(self, numhidden):
@@ -160,7 +198,7 @@ class LayerInnerProduct:
 
 		self.deltaW=(1.0/m)*np.dot(self.din_gemm.transpose(),self.zgemm)
 		#L2 regularization
-		self.deltaW=self.deltaW+(self.eta/m)*self.W
+		self.deltaW=self.deltaW+(self.eta/float(m))*self.W
 
 		self.deltaB=(1.0/float(m))*np.sum(self.din_gemm, axis=0).transpose()
 		self.deltaB=np.expand_dims(self.deltaB, axis=1)
@@ -190,6 +228,21 @@ class LayerInnerProduct:
 		#self.b=self.b-alpha*self.deltaB
 
 class LayerMaxPool:
+	def __init__(self):
+		self.type='maxpool'
+	def setshapes(self, inputshape):
+		(m,h,w,channels)=inputshape
+		self.zshape=inputshape
+		self.ashape=(m,h/2,w/2,channels)
+	def forward(self, z):
+		[self.a,self.switches]=maxpool_nhwc(z)
+		return self.a
+	def backward(self, din):
+		self.dout=maxpool_back_nhwc(din,self.switches)
+		return self.dout
+
+
+class LayerMaxPoolBrute:
 	def __init__(self):
 		self.type='maxpool'
 	def setshapes(self, inputshape):
@@ -247,15 +300,17 @@ class LayerDropout:
 	def setshapes(self, inputshape):
 		self.zshape=inputshape
 		self.ashape=self.zshape
+		self.update()
 	def forward(self, z):
 		self.z=z
-		self.d=(1.0/self.keepprob)*((np.random.rand(self.z.shape[0], self.z.shape[1], self.z.shape[2], self.z.shape[3]) < self.keepprob).astype(float))
 		self.a=np.multiply(self.z, self.d)
 		return self.a
 	def backward(self, din):
 		self.din=din
 		self.dout=np.multiply(din, self.d)
 		return self.dout
+	def update(self):
+		self.d=(1.0/self.keepprob)*((np.random.rand(self.zshape[0], self.zshape[1], self.zshape[2], self.zshape[3]) < self.keepprob).astype(float))
 
 class LayerFlatten:
 	def __init__(self):
@@ -307,8 +362,9 @@ class LayerSoftmaxLoss:
 		return self.costFuncFast(yhat, y)
 
 class NN:
-	def __init__(self,graph):
+	def __init__(self,graph, timing=False):
 		self.layers=graph
+		self.timing=timing
 	def setshapes(self, inputshape):
 		numlayers=len(self.layers)
 		zshape=inputshape
@@ -321,30 +377,51 @@ class NN:
 	def forward(self,x, dropout=True):
 		z=x
 		numlayers=len(self.layers)
-		#print 'Forward'
+		if (self.timing):
+			print 'Forward Timing'
 		for i in range(0, numlayers):
 			if ((dropout==False) and (self.layers[i].type=='dropout')):
 				pass
 			else:
-				a=self.layers[i].forward(z)
-				z=a
+				if (self.timing):
+					start=time.time()
+					a=self.layers[i].forward(z)
+					z=a
+					end=time.time()
+					print self.layers[i].type, end-start
+				else:
+					a=self.layers[i].forward(z)
+					z=a
+
 		return a
 	def backward(self, din, dropout=True):
 		numlayers=len(self.layers)
-		#print 'Backward'
+		if (self.timing):
+			print 'Backward Timing'
 		for i in range(numlayers-1, -1, -1):
 			#print self.layers[i].type
 			if ((dropout==False) and (self.layers[i].type=='dropout')):
 				pass
 			else:
-				dout=self.layers[i].backward(din)
-				din=dout
+				if (self.timing):
+					start=time.time()
+					dout=self.layers[i].backward(din)
+					din=dout
+					end=time.time()
+					print self.layers[i].type, end-start
+				else:
+					dout=self.layers[i].backward(din)
+					din=dout
 	def update(self, alpha):
 		numlayers=len(self.layers)
 		for i in range(0,numlayers):
 			layer=self.layers[i]
+			if (layer.type=='conv3x3'):
+				layer.update(alpha)	
 			if (layer.type=='innerproduct'):
 				layer.update(alpha)	
+			if (layer.type=='dropout'):
+				layer.update()	
 	def costFunc(self, yhat, y):
 		cost=0.0
 		regterm=0.0
@@ -357,6 +434,8 @@ class NN:
 		#add in L2 regularization
 		for i in range(0,numlayers):
 			layer=self.layers[i]
+			if (layer.type=='conv3x3'):
+				regterm=regterm+0.5*(1.0/m)*layer.regularization()
 			if (layer.type=='innerproduct'):
 				regterm=regterm+0.5*(1.0/m)*layer.regularization()
 		return (cost+regterm)

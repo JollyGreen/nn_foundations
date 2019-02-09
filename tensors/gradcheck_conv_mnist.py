@@ -25,10 +25,10 @@ print 'xtest:', xtest.shape
 print 'ytest:', ytest.shape
 
 graph=[]
-graph.append(LayerConv())
-graph.append(LayerMaxPool())
-graph.append(LayerConv())
-graph.append(LayerMaxPool())
+graph.append(LayerConv(4))
+#graph.append(LayerMaxPool())
+graph.append(LayerConv(4))
+#graph.append(LayerMaxPool())
 graph.append(LayerFlatten())
 graph.append(LayerInnerProduct(10))
 graph.append(LayerSoftmaxLoss())
