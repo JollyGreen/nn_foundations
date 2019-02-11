@@ -6,7 +6,7 @@ import time
 def maxpool_bruteforce_nchw(z):
 	(N,C,H,W)=z.shape
 	a=np.zeros( (N,C,H/2,W/2) )
-	switches=np.zeros( (N,C,H/2,W/2), dtype=int)
+	switches=np.zeros( (N,C,H/2,W/2), dtype=np.int8)
 	for n in range(0,N):
 		for c in range(0,C):
 			for i in range(0,H/2):
@@ -20,7 +20,7 @@ def maxpool_bruteforce_nchw(z):
 def maxpool_bruteforce_nhwc(z):
 	(N,H,W,C)=z.shape
 	a=np.zeros( (N,H/2,W/2,C) )
-	switches=np.zeros( (N,H/2,W/2,C), dtype=int)
+	switches=np.zeros( (N,H/2,W/2,C), dtype=np.int8)
 	for n in range(0,N):
 		for c in range(0,C):
 			for i in range(0,H/2):
@@ -134,7 +134,7 @@ def maxpool_nchw(z):
 
 	cols=z[:,k,r,c].reshape(-1,FH*FW)
 
-	switches=np.argmax(cols, axis=1)
+	switches=np.argmax(cols, axis=1).astype(np.int8)
 	vals=cols[np.arange(0,cols.shape[0]), switches]
 	return [vals.reshape(N,C,OH,OW), switches.reshape( (N,C,OH,OW) )]
 
@@ -154,7 +154,7 @@ def maxpool_nhwc(z):
 
 	cols=cols.reshape(-1,FH*FW)
 
-	switches=np.argmax(cols, axis=1)
+	switches=np.argmax(cols, axis=1).astype(np.int8)
 	vals=cols[np.arange(0,cols.shape[0]), switches]
 
 	switches=switches.reshape(N,C,OH,OW).transpose(0,2,3,1)
@@ -202,6 +202,37 @@ def maxpool_back_nhwc(a, switches):
 	[r,c,k]=maxpool_indices_nhwc( (N,H,W,C) )
 
 	np.add.at(o, (slice(None),r,c,k), fills)
+
+	return o
+
+def speedup_maxpool_back_nhwc(a, switches):
+	(N,OH,OW,C)=a.shape
+	H=OH*2
+	W=OW*2
+	FH=2
+	FW=2
+	stride=2
+
+	o=np.zeros( (N,H,W,C) )
+	switches=switches.transpose(0,3,1,2).reshape(-1)
+
+	vals=a.transpose(0,3,1,2).reshape(-1)
+	fills=np.zeros( (vals.shape[0], FH*FW) )
+	fills[np.arange(0, vals.shape[0]), switches]=vals
+	
+	fills=fills.reshape(N, -1)
+	[r,c,k]=maxpool_indices_nhwc( (N,H,W,C) )
+
+	allgoodidxs=fills!=0.0
+	idxs=np.arange(0,fills.shape[1])
+	for n in range(0,N):
+		goodidxs=idxs[allgoodidxs[n,:]]
+
+		goodfills=fills[n,goodidxs]
+		goodk=k[goodidxs]
+		goodr=r[goodidxs]
+		goodc=c[goodidxs]
+		np.add.at(o[n,:,:,:], (goodr,goodc,goodk), goodfills)
 
 	return o	
 

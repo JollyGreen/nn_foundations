@@ -24,6 +24,7 @@ class LayerConv:
 		self.type='conv3x3'
 		self.outchannels=numchannels
 		self.first=True
+		self.firstlayer=False
 
 		#momentum weight
 		self.gamma=0.9
@@ -48,6 +49,8 @@ class LayerConv:
 		self.b=np.ones(self.outchannels)
 		self.deltaB=np.zeros(self.outchannels)
 		pass
+	def setfirstlayer(self):
+		self.firstlayer=True
 	def setW(self, W):
 		self.W=W
 	def setB(self, B):
@@ -107,22 +110,23 @@ class LayerConv:
 		self.deltaB=np.zeros(self.outchannels)
 		for i in range(0,self.outchannels):
 			self.deltaB[i]+=(1.0/float(m))*np.sum(din[:,:,:,i])
-		#print "self.padz.shape",self.padz.shape
-		#print "din.shape",din.shape
-		#print "deltaW.shape",self.deltaW.shape
-		paddinh=dh+2*din_padval
-		paddinw=dw+2*din_padval
-		self.paddin=np.zeros( (m,paddinh,paddinw,dchannels) )
-		for i in range(0,m):
-			for j in range(0,dchannels):
-				self.paddin[i,:,:,j]=np.pad(din[i,:,:,j],pad_width=din_padval, mode='constant', constant_values=0)
-		#print "din.shape: ", din.shape
-		#print "paddin.shape: ", self.paddin.shape
-		#print "rotW.shape: ", rotW.shape
-		self.dout=corr4d_gemm_tensor(self.paddin,rotW)
-		#print "self.dout: ",self.dout.shape
-		#self.dout=np.random.randn( self.dout.shape[0],self.dout.shape[1],self.dout.shape[2],self.dout.shape[3] )
-		return self.dout
+
+		if (self.firstlayer == False):
+			paddinh=dh+2*din_padval
+			paddinw=dw+2*din_padval
+			self.paddin=np.zeros( (m,paddinh,paddinw,dchannels) )
+			for i in range(0,m):
+				for j in range(0,dchannels):
+					self.paddin[i,:,:,j]=np.pad(din[i,:,:,j],pad_width=din_padval, mode='constant', constant_values=0)
+			#print "din.shape: ", din.shape
+			#print "paddin.shape: ", self.paddin.shape
+			#print "rotW.shape: ", rotW.shape
+			self.dout=corr4d_gemm_tensor(self.paddin,rotW)
+			#print "self.dout: ",self.dout.shape
+			#self.dout=np.random.randn( self.dout.shape[0],self.dout.shape[1],self.dout.shape[2],self.dout.shape[3] )
+			return self.dout
+		else:
+			return []
 	def update_momentum(self, alpha):
 		if (self.first==True):
 			self.first=False
@@ -148,6 +152,7 @@ class LayerInnerProduct:
 		self.numhidden=numhidden
 		
 		self.first=True
+		self.firstlayer=False
 
 		#momentum weight
 		self.gamma=0.9
@@ -171,6 +176,8 @@ class LayerInnerProduct:
 		self.b=np.matrix(np.ones(self.Bshape))
 		print '\tW',self.W.shape
 		print '\tb',self.b.shape
+	def setfirstlayer(self):
+		self.firstlayer=True
 	def setW(self, W):
 		self.W=W
 	def setB(self, B):
@@ -238,7 +245,7 @@ class LayerMaxPool:
 		[self.a,self.switches]=maxpool_nhwc(z)
 		return self.a
 	def backward(self, din):
-		self.dout=maxpool_back_nhwc(din,self.switches)
+		self.dout=speedup_maxpool_back_nhwc(din,self.switches)
 		return self.dout
 
 
@@ -365,6 +372,11 @@ class NN:
 	def __init__(self,graph, timing=False):
 		self.layers=graph
 		self.timing=timing
+
+		if (len(self.layers) > 0):
+			firstlayer=self.layers[0]
+			if (firstlayer.type=='innerproduct' or firstlayer.type=='conv3x3'):
+				self.layers[0].setfirstlayer()
 	def setshapes(self, inputshape):
 		numlayers=len(self.layers)
 		zshape=inputshape
@@ -388,7 +400,7 @@ class NN:
 					a=self.layers[i].forward(z)
 					z=a
 					end=time.time()
-					print self.layers[i].type, end-start
+					print "%12s: %7.2f" % (self.layers[i].type, end-start)
 				else:
 					a=self.layers[i].forward(z)
 					z=a
@@ -408,7 +420,7 @@ class NN:
 					dout=self.layers[i].backward(din)
 					din=dout
 					end=time.time()
-					print self.layers[i].type, end-start
+					print "%12s: %7.2f" % (self.layers[i].type, end-start)
 				else:
 					dout=self.layers[i].backward(din)
 					din=dout
@@ -471,13 +483,10 @@ class NN:
 			batchy=np.concatenate((batchy,lasthalfy), axis=0)
 			#print '\tbatchx.shape', batchx.shape
 		return [batchx,batchy]
-	def train(self, xtrain, ytrain, xtest, ytest, batchsize, itersperpass, maxiters, alpha):
+	def train(self, xtrain, ytrain, xtest, ytest, batchsize, itersperpass, maxiters, alpha, timing=False):
 		print "maxiters:", maxiters
-
 		for i in range(0, maxiters):
 			[batchx,batchy]=self.getminibatch(xtrain,ytrain,batchsize,i)
-			yhat=self.forward(batchx)
-			self.backward(batchy)
 
 			if (np.mod(i, itersperpass)==0):
 				yhatbatch=self.forward(batchx, dropout=False)
@@ -487,11 +496,31 @@ class NN:
 				yhattest=self.forward(xtest, dropout=False)
 				testcost=self.costFunc(yhattest, ytest)
 				testaccuracy=self.accuracy(yhattest, ytest)
-				print '\ttrain - cost: %7.3f\taccuracy: %7.3f\ttest - cost: %7.3f\taccuracy: %7.3f' % (batchcost, batchaccuracy, testcost, testaccuracy)
+				print '\n\ttrain - batchcost: %7.3f\taccuracy: %7.3f\ttest - cost: %7.3f\taccuracy: %7.3f' % (batchcost, batchaccuracy, testcost, testaccuracy)
 
 				#self.gradcheck(batchx,batchy)
 
+
+			if (timing):
+				start=time.time()
+				yhat=self.forward(batchx)
+				stop=time.time()
+				forwardtime=stop-start
+				
+				start=time.time()
+				self.backward(batchy)
+				stop=time.time()
+				backwardtime=stop-start
+				print "Forward: %7.2f, Backward: %7.2f" % (forwardtime, backwardtime)
+			else:
+				sys.stdout.write(".")
+				sys.stdout.flush()
+				yhat=self.forward(batchx)
+				self.backward(batchy)
+
+
 			self.update(alpha)
+
 	def gradcheck(self, x, y):
 		epsilon=1e-4
 		numlayers=len(self.layers)

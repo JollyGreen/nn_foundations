@@ -19,8 +19,8 @@ y=np.expand_dims(y,3)
 ytest=np.expand_dims(ytest,2)
 ytest=np.expand_dims(ytest,3)
 
-x=x[0:10000,:,:,:]
-y=y[0:10000,:,:,:]
+x=x[0:6000,:,:,:]
+y=y[0:6000,:,:,:]
 
 xtest=xtest[0:1000,:,:,:]
 ytest=ytest[0:1000,:,:,:]
@@ -39,7 +39,7 @@ graph.append(LayerMaxPool())
 graph.append(LayerReLU())
 graph.append(LayerDropout(0.8))
 graph.append(LayerFlatten())
-graph.append(LayerInnerProduct(64))
+graph.append(LayerInnerProduct(128))
 graph.append(LayerReLU())
 graph.append(LayerDropout(0.5))
 graph.append(LayerInnerProduct(10))
@@ -50,13 +50,13 @@ batchsize=128
 numpasses=80
 numiters=int(np.round(float(numpasses)*(float(numsamples)/float(batchsize))))
 itersperpass=numiters/numpasses
-alpha=0.01
+alpha=0.003
 
 xtmp=x[0:128,:,:,:]
 nn=NN(graph, timing=False)
 nn.setshapes(xtmp.shape)
 
 print "ITERS PER PASS: ", itersperpass
-nn.train(x,y,xtest,ytest, batchsize, itersperpass, numiters, alpha)
+nn.train(x,y,xtest,ytest, batchsize, itersperpass, numiters, alpha, timing=False)
 
 
