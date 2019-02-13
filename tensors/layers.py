@@ -4,6 +4,7 @@ import numpy as np
 import sys
 import time
 
+from pad_helpers import *
 from conv_helpers import *
 from maxpool_helpers import *
 
@@ -40,12 +41,16 @@ class LayerConv:
 		fanin=self.inputchannels*3*3
 		fanout=self.outchannels
 		#s=np.sqrt(2.0/float(fanin+fanout)) #normal
-		s=np.sqrt(6.0/float(fanin+fanout)) #uniform
+
 
 		self.Wshape=(3,3,self.inputchannels,self.outchannels) # HxWxICxOC
-		#self.W=np.random.randn(self.Wshape[0],self.Wshape[1],self.Wshape[2],self.Wshape[3])
-		#self.W=np.random.normal(loc=0.0, scale=s, size=self.Wshape)
-		self.W=np.random.uniform(low=-s, high=s, size=self.Wshape)
+		#glorot uniform
+		#s=np.sqrt(6.0/float(fanin+fanout)) #uniform
+		#self.W=np.random.uniform(low=-s, high=s, size=self.Wshape)
+
+		#xavier weight initialization
+		self.W=np.random.randn(self.Wshape[0],self.Wshape[1],self.Wshape[2],self.Wshape[3])*np.sqrt(2.0/(fanin+fanout))
+
 		self.b=np.ones(self.outchannels)
 		self.deltaB=np.zeros(self.outchannels)
 		pass
@@ -66,16 +71,14 @@ class LayerConv:
 	def forward(self, z):
 		#for now, just implement 3x3 stride of 1 convolutions with padding of 1,
 		#start with just 1 input channel to 1 output channel.
-		padval=1
-		(m,zh,zw,channels)=z.shape
-		padzh=zh+2*padval
-		padzw=zw+2*padval
+		self.padz=pad_fast(z, 1)
 
-		self.padz=np.zeros( (m,padzh,padzw,channels) )
-		for i in range(0,m):
-			for j in range(0,channels):
-				self.padz[i,:,:,j]=np.pad(z[i,:,:,j],pad_width=padval, mode='constant', constant_values=0)
+		#start=time.time()
 		self.a=corr4d_gemm_tensor(self.padz,self.W)
+		#stop=time.time()
+		#gemmtime=stop-start
+
+		#print "times: ",gemmtime
 		#self.a=corr4d_tensor(self.padz,self.W)
 		for i in range(0,self.outchannels):
 			self.a[:,:,:,i]+=self.b[i]
@@ -85,9 +88,6 @@ class LayerConv:
 	def backward(self, din):
 		(m,dh,dw,dchannels)=din.shape
 		(m,zh,zw,zchannels)=self.padz.shape
-		fh=zh-dh+1
-		fw=zw-dw+1
-		din_padval=1
 
 		(tmpfh,tmpfw,ic,oc)=self.W.shape
 		rotW=np.zeros( (tmpfh,tmpfw,oc,ic) )
@@ -95,14 +95,6 @@ class LayerConv:
 			for l in range(0,zchannels):
 				rotW[:,:,k,l]=np.rot90(self.W[:,:,l,k], 2)
 
-		#self.deltaW=np.zeros( (fh,fw,zchannels,dchannels) )
-		#print self.padz.shape, din.shape
-		#for i in range(0,fh):
-		#	for j in range(0,fw):
-		#		for k in range(0,dchannels):
-		#			for l in range(0,zchannels):
-		#				for n in range(0,m):
-		#					self.deltaW[i,j,l,k]+=(1.0/float(m))*np.dot( self.padz[n, i:(i+dh),j:(j+dw), l].reshape(-1), din[n,:,:,k].reshape(-1) )
 		self.deltaW=(1.0/float(m))*corr_gemm_tensor_backprop(self.padz,din)
 		#L2 regularization
 		self.deltaW=self.deltaW+(self.eta/float(m))*self.W
@@ -112,15 +104,8 @@ class LayerConv:
 			self.deltaB[i]+=(1.0/float(m))*np.sum(din[:,:,:,i])
 
 		if (self.firstlayer == False):
-			paddinh=dh+2*din_padval
-			paddinw=dw+2*din_padval
-			self.paddin=np.zeros( (m,paddinh,paddinw,dchannels) )
-			for i in range(0,m):
-				for j in range(0,dchannels):
-					self.paddin[i,:,:,j]=np.pad(din[i,:,:,j],pad_width=din_padval, mode='constant', constant_values=0)
-			#print "din.shape: ", din.shape
-			#print "paddin.shape: ", self.paddin.shape
-			#print "rotW.shape: ", rotW.shape
+			self.paddin=pad_fast(din, 1)
+
 			self.dout=corr4d_gemm_tensor(self.paddin,rotW)
 			#print "self.dout: ",self.dout.shape
 			#self.dout=np.random.randn( self.dout.shape[0],self.dout.shape[1],self.dout.shape[2],self.dout.shape[3] )
@@ -169,9 +154,17 @@ class LayerInnerProduct:
 
 		self.ashape=(self.m,self.numhidden,1,1)
 
+		fanin=self.numinputfeatures
+		fanout=self.numhidden
+
 		#self.W=np.matrix(np.random.normal(size=self.Wshape))
 		#xavier weight initialization
-		self.W=np.matrix(np.random.randn(self.Wshape[0],self.Wshape[1]), dtype=float)*np.sqrt(2.0/(self.Wshape[1]))
+		self.W=np.matrix(np.random.randn(self.Wshape[0],self.Wshape[1]), dtype=float)*np.sqrt(2.0/(fanin+fanout))
+
+		#glorot uniform
+
+		#s=np.sqrt(6.0/float(fanin+fanout)) #uniform
+		#self.W=np.matrix(np.random.uniform(low=-s, high=s, size=self.Wshape))
 
 		self.b=np.matrix(np.ones(self.Bshape))
 		print '\tW',self.W.shape

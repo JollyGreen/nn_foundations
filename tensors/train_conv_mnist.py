@@ -37,8 +37,8 @@ graph.append(LayerReLU())
 graph.append(LayerConv(64))
 graph.append(LayerMaxPool())
 graph.append(LayerReLU())
-graph.append(LayerDropout(0.8))
 graph.append(LayerFlatten())
+graph.append(LayerDropout(0.8))
 graph.append(LayerInnerProduct(128))
 graph.append(LayerReLU())
 graph.append(LayerDropout(0.5))
@@ -50,7 +50,8 @@ batchsize=128
 numpasses=80
 numiters=int(np.round(float(numpasses)*(float(numsamples)/float(batchsize))))
 itersperpass=numiters/numpasses
-alpha=0.003
+#alpha=0.003 #2-layer conv net
+alpha=0.01 #1-layer conv net
 
 xtmp=x[0:128,:,:,:]
 nn=NN(graph, timing=False)

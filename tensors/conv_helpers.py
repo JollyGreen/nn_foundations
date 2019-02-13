@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import time
 import numpy as np
 
 def get_im2col_indices(x_shape, field_height, field_width, padding=1, stride=1):
@@ -108,7 +109,11 @@ def corr4d_gemm_tensor(a,f, padval=0):
 			for c in range(0,ow):
 				tmp[i*oh*ow+r*ow+c,:]=pada[i,r:(r+fh),c:(c+fw),:].reshape(-1)
 				#tmp[i*oh*ow+r*ow+c,:]=pada[i,:,r:(r+fh),c:(c+fw)].reshape(-1)
+	#print oh,ow, tmp.shape, farray.shape
+	#start=time.time()
 	result=np.dot(tmp, farray)
+	#stop=time.time()
+	#print "gemm time: ", stop-start
 	return result.reshape(m,oh,ow,oc)
 
 def tensor_flatten_brute_force(a):
