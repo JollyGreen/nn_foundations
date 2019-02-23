@@ -73,17 +73,11 @@ class LayerConv:
 		#start with just 1 input channel to 1 output channel.
 		self.padz=pad_fast(z, 1)
 
-		#start=time.time()
-		self.a=corr4d_gemm_tensor(self.padz,self.W)
-		#stop=time.time()
-		#gemmtime=stop-start
+		self.a=corr4d_gemm_cols_tensor(self.padz,self.W)
 
-		#print "times: ",gemmtime
-		#self.a=corr4d_tensor(self.padz,self.W)
 		for i in range(0,self.outchannels):
 			self.a[:,:,:,i]+=self.b[i]
 
-		#print "conv shape",self.a.shape	
 		return self.a
 	def backward(self, din):
 		(m,dh,dw,dchannels)=din.shape
@@ -95,6 +89,7 @@ class LayerConv:
 			for l in range(0,zchannels):
 				rotW[:,:,k,l]=np.rot90(self.W[:,:,l,k], 2)
 
+		#print "pad/din:", self.padz.shape,din.shape
 		self.deltaW=(1.0/float(m))*corr_gemm_tensor_backprop(self.padz,din)
 		#L2 regularization
 		self.deltaW=self.deltaW+(self.eta/float(m))*self.W
@@ -106,7 +101,7 @@ class LayerConv:
 		if (self.firstlayer == False):
 			self.paddin=pad_fast(din, 1)
 
-			self.dout=corr4d_gemm_tensor(self.paddin,rotW)
+			self.dout=corr4d_gemm_cols_tensor(self.paddin,rotW)
 			#print "self.dout: ",self.dout.shape
 			#self.dout=np.random.randn( self.dout.shape[0],self.dout.shape[1],self.dout.shape[2],self.dout.shape[3] )
 			return self.dout
@@ -393,7 +388,7 @@ class NN:
 					a=self.layers[i].forward(z)
 					z=a
 					end=time.time()
-					print "%12s: %7.2f" % (self.layers[i].type, end-start)
+					print "%12s: %7.3f" % (self.layers[i].type, end-start)
 				else:
 					a=self.layers[i].forward(z)
 					z=a
@@ -413,7 +408,7 @@ class NN:
 					dout=self.layers[i].backward(din)
 					din=dout
 					end=time.time()
-					print "%12s: %7.2f" % (self.layers[i].type, end-start)
+					print "%12s: %7.3f" % (self.layers[i].type, end-start)
 				else:
 					dout=self.layers[i].backward(din)
 					din=dout

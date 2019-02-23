@@ -3,6 +3,7 @@
 import numpy as np
 from scipy.signal import correlate2d
 from conv_helpers import *
+from pad_helpers import *
 
 def corr2d(a,f, padval=0):
 	pada=np.pad(a,pad_width=padval, mode='constant', constant_values=0)
@@ -183,6 +184,63 @@ def corr3d_gemm_tensor_multi(a,f, padval=0):
 	return result.reshape(oh,ow,oc)
 
 
+def im2col_indices_nhwc(zshape):
+	(N,H,W,C)=zshape
+	FH=2
+	FW=2
+	stride=2
+
+	OH=H/2
+	OW=W/2
+
+	r=[0,0,1,1]
+	r=np.tile(r,OW*OH)
+	r0=np.repeat(np.arange(0,OH)*stride, FH*FW*OW)
+	r=r+r0
+	c=[0,1,0,1]
+	c=np.tile(c,OH*OW)
+	c0=np.tile(np.repeat(np.arange(0,OW)*stride, FH*FW), OH)
+	c=c+c0
+	r=np.tile(r,C)
+	c=np.tile(c,C)
+	k=np.repeat(np.arange(0,C), FH*FW*OH*OW)
+	return [r,c,k]
+
+def corr4d_gemm_tensor_fast(a,f, padval=0):
+	(m,ah,aw,channels)=a.shape
+
+	if (padval > 0):
+		pada=pad_fast(a, padval)
+	else:
+		pada=a
+
+	(fh,fw,ic,oc)=f.shape
+
+	oh=padah-fh+1
+	ow=padaw-fw+1
+
+	#print oh,ow
+	flen=fh*fw*ic
+	#f=f.transpose(2,0,1,3)
+	farray=f.reshape(flen,oc)
+
+	#pada=pada.transpose(0,3,1,2)
+	#Nx27*m 27x10
+	start=time.time()
+	tmp=np.zeros( (m*oh*ow, flen) )
+	for i in range(0,m):
+		for r in range(0,oh):
+			for c in range(0,ow):
+				tmp[i*oh*ow+r*ow+c,:]=pada[i,r:(r+fh),c:(c+fw),:].reshape(-1)
+				#tmp[i*oh*ow+r*ow+c,:]=pada[i,:,r:(r+fh),c:(c+fw)].reshape(-1)
+	stop=time.time()
+	im2rowtime=stop-start
+	#print oh,ow, tmp.shape, farray.shape
+	start=time.time()
+	result=np.dot(tmp, farray)
+	stop=time.time()
+	print "gemm time: ", im2rowtime,stop-start
+	return result.reshape(m,oh,ow,oc)
 
 
 
@@ -260,10 +318,15 @@ a=np.random.randint( 10, size=(16,28,28,3) )
 o_hat_4d_tensor=corr4d_tensor(a,f,padval=1)
 print o_hat_4d_tensor.shape
 
-print "4D GEMM Tensor"
-o_hat_4d_gemm_tensor=corr4d_gemm_tensor(a,f,padval=1)
-print o_hat_4d_gemm_tensor.shape
-print (o_hat_4d_tensor==o_hat_4d_gemm_tensor).all()
+print "4D GEMM rows Tensor"
+o_hat_4d_gemm_rows_tensor=corr4d_gemm_rows_tensor(a,f,padval=1)
+print o_hat_4d_gemm_rows_tensor.shape
+print (o_hat_4d_tensor==o_hat_4d_gemm_rows_tensor).all()
+
+print "4D GEMM cols Tensor"
+o_hat_4d_gemm_cols_tensor=corr4d_gemm_cols_tensor(a,f,padval=1)
+print o_hat_4d_gemm_cols_tensor.shape
+print (o_hat_4d_tensor==o_hat_4d_gemm_cols_tensor).all()
 
 print "4D Tensor Flatten Test"
 tensor_flatten_test(a)
