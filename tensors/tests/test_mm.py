@@ -5,10 +5,10 @@ import numpy as np
 
 from scipy.linalg import get_blas_funcs
 rX=25088
-cX=288
+cX=576
 
 rY=cX
-cY=64
+cY=32
 
 X=np.random.randn(rX,cX).astype(float)
 Y=np.random.randn(rY,cY).astype(float)
@@ -28,10 +28,10 @@ dot_time=stop-start
 print gemm_time, dot_time, np.allclose(a,b)
 
 
-rX=288
+rX=576
 cX=25088
 
-rY=64
+rY=32
 cY=rX
 
 X=np.random.randn(rX,cX).astype(float)

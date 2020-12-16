@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import numpy as np
-from layers import *
-from nn_utils import *
+from nnlib.layers import *
+from nnlib.nn_utils import *
 
 [traindata, trainlabels]=parse_mnist_train("../mnist/train-images-idx3-ubyte", "../mnist/train-labels-idx1-ubyte", 60000)
 [testdata, testlabels]=parse_mnist_train("../mnist/t10k-images-idx3-ubyte", "../mnist/t10k-labels-idx1-ubyte", 10000)
@@ -50,8 +50,8 @@ batchsize=128
 numpasses=80
 numiters=int(np.round(float(numpasses)*(float(numsamples)/float(batchsize))))
 itersperpass=numiters/numpasses
-#alpha=0.003 #2-layer conv net
-alpha=0.01 #1-layer conv net
+alpha=0.003 #2-layer conv net
+#alpha=0.01 #1-layer conv net
 
 xtmp=x[0:128,:,:,:]
 nn=NN(graph, timing=False)

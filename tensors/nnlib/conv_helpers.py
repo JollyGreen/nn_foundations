@@ -59,7 +59,7 @@ def corr_tensor_backprop(a,b,padval=0):
 						f[i,j,k,l]+=np.dot( a[n,i:(i+bh), j:(j+bw),k].reshape(-1), b[n,:,:,l].reshape(-1))
 	return f
 
-def corr_gemm_tensor_backprop(a,b,padval=0):
+def corr_gemm_tensor_backprop(a,b):
 	(m,ah,aw,ic)=a.shape
 	(m,bh,bw,oc)=b.shape
 	fh=ah-bh+1

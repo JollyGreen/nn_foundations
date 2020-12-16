@@ -1,0 +1,41 @@
+	 test cost:  0.0775866541102 accuracy:  0.9799
+iter:  21900
+	batchcost:  0.0155114269001 batchaccuracy:  0.9921875  cost:  0.0180432320112 accuracy:  0.9949
+	 test cost:  0.0802768606887 accuracy:  0.9797
+iter:  22000
+	batchcost:  0.031647256835 batchaccuracy:  1.0  cost:  0.0203750894032 accuracy:  0.994316666667
+	 test cost:  0.078625132018 accuracy:  0.9794
+iter:  22100
+	batchcost:  0.156708827213 batchaccuracy:  0.953125  cost:  0.0200572502476 accuracy:  0.994083333333
+	 test cost:  0.0873847954082 accuracy:  0.979
+iter:  22200
+	batchcost:  0.0797390670454 batchaccuracy:  0.96875  cost:  0.0186722410315 accuracy:  0.994666666667
+	 test cost:  0.082715690692 accuracy:  0.9797
+iter:  22300
+	batchcost:  0.0743369252871 batchaccuracy:  0.984375  cost:  0.0178657212443 accuracy:  0.994483333333
+	 test cost:  0.0809121255713 accuracy:  0.979
+iter:  22400
+	batchcost:  0.0928934525815 batchaccuracy:  0.9609375  cost:  0.0159217612523 accuracy:  0.99555
+	 test cost:  0.0793052174445 accuracy:  0.9802
+iter:  22500
+	batchcost:  0.0505925700537 batchaccuracy:  0.9765625  cost:  0.0201587940946 accuracy:  0.9936
+	 test cost:  0.0943979874994 accuracy:  0.9779
+iter:  22600
+	batchcost:  0.0524686125723 batchaccuracy:  0.9921875  cost:  0.0186290107787 accuracy:  0.99455
+	 test cost:  0.0840538995331 accuracy:  0.9792
+iter:  22700
+	batchcost:  0.0233170707964 batchaccuracy:  0.9921875  cost:  0.0250440097829 accuracy:  0.993066666667
+	 test cost:  0.0845418409845 accuracy:  0.9784
+iter:  22800
+	batchcost:  0.101446541722 batchaccuracy:  0.9765625  cost:  0.0212046966444 accuracy:  0.993566666667
+	 test cost:  0.0854441205732 accuracy:  0.979
+iter:  22900
+	batchcost:  0.156212643933 batchaccuracy:  0.953125  cost:  0.0180468729824 accuracy:  0.994666666667
+	 test cost:  0.0784913791569 accuracy:  0.9796
+iter:  23000
+	batchcost:  0.0485239167793 batchaccuracy:  0.984375  cost:  0.0183037122761 accuracy:  0.99505
+	 test cost:  0.0850106300517 accuracy:  0.9785
+iter:  23100
+	batchcost:  0.0825034180894 batchaccuracy:  0.9921875  cost:  0.0169277720868 accuracy:  0.9952
+	 test cost:  0.0763180816132 accuracy:  0.9819
+
